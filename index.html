@@ -26,18 +26,28 @@
     background-color: #888;
     color: black;
   }
+  .volume-slider {
+    width: 200px;
+    margin-top: 20px;
+  }
 </style>
 </head>
 <body>
 
 <button id="play-btn">Play</button>
 <button id="stop-btn">Stop</button>
+<div>
+  <button id="volume-decrease">-</button>
+  <input type="range" min="0" max="100" value="50" class="volume-slider" id="volume-slider">
+  <button id="volume-increase">+</button>
+</div>
 
 <script>
   let audioContext;
   let brownNoiseNode;
   let isPlaying = false;
   let lastOut = 0;
+  let volume = 0.5; // Adjust the default volume here
 
   const createAudioContext = () => {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -51,7 +61,7 @@
         for (let sample = 0; sample < outputBuffer.length; sample++) {
           const whiteNoise = Math.random() * 2 - 1;
           lastOut = (0.99 * lastOut) + (0.01 * whiteNoise);
-          outputData[sample] = lastOut * 3.5; // Adjust the gain to control the volume
+          outputData[sample] = lastOut * volume * 5; // Adjust the gain to control the volume
         }
       }
     };
@@ -59,6 +69,9 @@
 
   const playBtn = document.getElementById('play-btn');
   const stopBtn = document.getElementById('stop-btn');
+  const volumeSlider = document.getElementById('volume-slider');
+  const volumeDecreaseBtn = document.getElementById('volume-decrease');
+  const volumeIncreaseBtn = document.getElementById('volume-increase');
 
   playBtn.addEventListener('click', () => {
     if (!isPlaying) {
@@ -74,6 +87,26 @@
     if (isPlaying) {
       brownNoiseNode.disconnect();
       isPlaying = false;
+    }
+  });
+
+  volumeSlider.addEventListener('input', (event) => {
+    volume = event.target.value / 100;
+  });
+
+  volumeDecreaseBtn.addEventListener('click', () => {
+    if (volume > 0) {
+      volume -= 0.1;
+      volume = Math.max(volume, 0);
+      volumeSlider.value = volume * 100;
+    }
+  });
+
+  volumeIncreaseBtn.addEventListener('click', () => {
+    if (volume < 1) {
+      volume += 0.1;
+      volume = Math.min(volume, 1);
+      volumeSlider.value = volume * 100;
     }
   });
 </script>
