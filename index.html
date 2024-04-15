@@ -34,22 +34,27 @@
 <button id="stop-btn">Stop</button>
 
 <script>
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const bufferSize = 4096;
-  const brownNoiseNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+  let audioContext;
+  let brownNoiseNode;
   let isPlaying = false;
   let lastOut = 0;
 
-  brownNoiseNode.onaudioprocess = function(audioProcessingEvent) {
-    const outputBuffer = audioProcessingEvent.outputBuffer;
-    for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
-      const outputData = outputBuffer.getChannelData(channel);
-      for (let sample = 0; sample < outputBuffer.length; sample++) {
-        const whiteNoise = Math.random() * 2 - 1;
-        lastOut = (0.99 * lastOut) + (0.01 * whiteNoise);
-        outputData[sample] = lastOut * 3.5; // Adjust the gain to control the volume
+  const createAudioContext = () => {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const bufferSize = 4096;
+    brownNoiseNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+
+    brownNoiseNode.onaudioprocess = function(audioProcessingEvent) {
+      const outputBuffer = audioProcessingEvent.outputBuffer;
+      for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+        const outputData = outputBuffer.getChannelData(channel);
+        for (let sample = 0; sample < outputBuffer.length; sample++) {
+          const whiteNoise = Math.random() * 2 - 1;
+          lastOut = (0.99 * lastOut) + (0.01 * whiteNoise);
+          outputData[sample] = lastOut * 3.5; // Adjust the gain to control the volume
+        }
       }
-    }
+    };
   };
 
   const playBtn = document.getElementById('play-btn');
@@ -57,6 +62,9 @@
 
   playBtn.addEventListener('click', () => {
     if (!isPlaying) {
+      if (!audioContext) {
+        createAudioContext();
+      }
       brownNoiseNode.connect(audioContext.destination);
       isPlaying = true;
     }
