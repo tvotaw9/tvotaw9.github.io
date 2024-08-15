@@ -45,26 +45,64 @@
 <script>
   let audioContext;
   let brownNoiseNode;
+  let gainNode;
   let isPlaying = false;
-  let lastOut = 0;
-  let volume = 0.5; // Adjust the default volume here
+  let volume = 0.5;
 
-  const createAudioContext = () => {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const bufferSize = 4096;
-    brownNoiseNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+  class BrownNoiseProcessor extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      this.lastOut = 0;
+    }
 
-    brownNoiseNode.onaudioprocess = function(audioProcessingEvent) {
-      const outputBuffer = audioProcessingEvent.outputBuffer;
-      for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
-        const outputData = outputBuffer.getChannelData(channel);
-        for (let sample = 0; sample < outputBuffer.length; sample++) {
+    process(inputs, outputs, parameters) {
+      const output = outputs[0];
+      for (let channel = 0; channel < output.length; channel++) {
+        const outputData = output[channel];
+        for (let i = 0; i < outputData.length; i++) {
           const whiteNoise = Math.random() * 2 - 1;
-          lastOut = (0.99 * lastOut) + (0.01 * whiteNoise);
-          outputData[sample] = lastOut * volume * 5; // Adjust the gain to control the volume
+          this.lastOut = (this.lastOut + (0.02 * whiteNoise)) / 1.02;
+          outputData[i] = this.lastOut * 3.5; // Adjust the multiplier for volume
         }
       }
-    };
+      return true;
+    }
+  }
+
+  // Register the processor
+  if (typeof AudioWorkletProcessor !== 'undefined') {
+    registerProcessor('brown-noise-processor', BrownNoiseProcessor);
+  }
+
+  const createAudioContext = async () => {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    await audioContext.audioWorklet.addModule(URL.createObjectURL(new Blob([`
+      class BrownNoiseProcessor extends AudioWorkletProcessor {
+        constructor() {
+          super();
+          this.lastOut = 0;
+        }
+
+        process(inputs, outputs, parameters) {
+          const output = outputs[0];
+          for (let channel = 0; channel < output.length; channel++) {
+            const outputData = output[channel];
+            for (let i = 0; i < outputData.length; i++) {
+              const whiteNoise = Math.random() * 2 - 1;
+              this.lastOut = (this.lastOut + (0.02 * whiteNoise)) / 1.02;
+              outputData[i] = this.lastOut * 3.5;
+            }
+          }
+          return true;
+        }
+      }
+      registerProcessor('brown-noise-processor', BrownNoiseProcessor);
+    `], { type: 'application/javascript' })));
+
+    brownNoiseNode = new AudioWorkletNode(audioContext, 'brown-noise-processor');
+    gainNode = audioContext.createGain();
+    gainNode.gain.value = volume;
+    brownNoiseNode.connect(gainNode).connect(audioContext.destination);
   };
 
   const playBtn = document.getElementById('play-btn');
@@ -73,25 +111,28 @@
   const volumeDecreaseBtn = document.getElementById('volume-decrease');
   const volumeIncreaseBtn = document.getElementById('volume-increase');
 
-  playBtn.addEventListener('click', () => {
+  playBtn.addEventListener('click', async () => {
     if (!isPlaying) {
       if (!audioContext) {
-        createAudioContext();
+        await createAudioContext();
       }
-      brownNoiseNode.connect(audioContext.destination);
       isPlaying = true;
+      gainNode.connect(audioContext.destination);
     }
   });
 
   stopBtn.addEventListener('click', () => {
     if (isPlaying) {
-      brownNoiseNode.disconnect();
+      gainNode.disconnect();
       isPlaying = false;
     }
   });
 
   volumeSlider.addEventListener('input', (event) => {
     volume = event.target.value / 100;
+    if (gainNode) {
+      gainNode.gain.value = volume;
+    }
   });
 
   volumeDecreaseBtn.addEventListener('click', () => {
@@ -99,6 +140,9 @@
       volume -= 0.1;
       volume = Math.max(volume, 0);
       volumeSlider.value = volume * 100;
+      if (gainNode) {
+        gainNode.gain.value = volume;
+      }
     }
   });
 
@@ -107,6 +151,9 @@
       volume += 0.1;
       volume = Math.min(volume, 1);
       volumeSlider.value = volume * 100;
+      if (gainNode) {
+        gainNode.gain.value = volume;
+      }
     }
   });
 </script>
