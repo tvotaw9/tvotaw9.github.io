@@ -11,6 +11,9 @@
     font-family: Arial, sans-serif;
     text-align: center;
     padding-top: 100px;
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
   }
   button {
     background-color: transparent;
@@ -30,6 +33,13 @@
     width: 200px;
     margin-top: 20px;
   }
+  .version-label {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    color: #222; /* Very dark grey */
+    font-size: 12px;
+  }
 </style>
 </head>
 <body>
@@ -41,6 +51,8 @@
   <input type="range" min="0" max="100" value="50" class="volume-slider" id="volume-slider">
   <button id="volume-increase">+</button>
 </div>
+
+<div class="version-label">v2</div>
 
 <script>
   let audioContext;
@@ -69,7 +81,6 @@
     }
   }
 
-  // Register the processor
   if (typeof AudioWorkletProcessor !== 'undefined') {
     registerProcessor('brown-noise-processor', BrownNoiseProcessor);
   }
